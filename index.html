@@ -125,11 +125,48 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(32px,5vw,46px);lin
 .r-min.zero{color:var(--warn)}
 .empty{color:var(--muted);font-size:14px;padding:20px 0}
 
+/* 체크 버튼 */
+.box-btn{background:none;border:0;padding:4px;margin:-4px;cursor:pointer;border-radius:6px;display:grid}
+.box-btn:hover .box{border-color:var(--acc)}
+.row.done .box-btn:hover .box{filter:brightness(1.1)}
+.row.pending .box{box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 30%,transparent)}
+
+/* 편집 상태 */
+.edit{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px}
+.state{display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
+.state::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.state[data-s="saved"]::before{background:var(--green)}
+.state[data-s="pending"]::before,.state[data-s="saving"]::before{background:var(--amber);animation:pulse 1s infinite alternate}
+.state[data-s="error"]{color:var(--rose)}
+.state[data-s="error"]::before{background:var(--rose)}
+@keyframes pulse{to{opacity:.35}}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.btn.danger{color:var(--rose)}
+
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:24px;width:min(520px,calc(100vw - 32px));max-height:calc(100dvh - 32px)}
+dialog::backdrop{background:rgb(10 12 16 / .55)}
+dialog h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0 0 8px}
+dialog p{margin:0 0 12px;color:var(--muted);font-size:14px}
+dialog ol{margin:0 0 16px;padding-left:20px;font-size:14px;display:grid;gap:6px}
+dialog ol b{font-weight:600}
+dialog a{color:var(--blue)}
+dialog code{font-family:var(--mono);font-size:12px;background:var(--sunk);padding:1px 5px;border-radius:4px}
+dialog label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+dialog input{width:100%;font:inherit;font-family:var(--mono);font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--ground);color:var(--ink)}
+.d-actions{display:flex;justify-content:space-between;gap:8px;margin-top:16px;flex-wrap:wrap}
+.d-actions div{display:flex;gap:8px}
+.d-err{color:var(--rose);font-size:13px;margin-top:8px;min-height:1em}
+
 /* 백로그 */
 .backlog h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0 0 10px}
 .bl{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
-.bl li{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:14px;display:inline-flex;gap:8px;align-items:center}
-.bl li.done{color:var(--faint);text-decoration:line-through}
+.bl li > *{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:14px;display:inline-flex;gap:8px;align-items:center;font-family:inherit;color:var(--ink)}
+.bl button{cursor:pointer}
+.bl button:hover{border-color:var(--ink)}
+.bl li.done > *{color:var(--faint);text-decoration:line-through}
 .bl .dot{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--faint)}
 .bl li.done .dot{background:var(--faint)}
 footer{font-size:12px;color:var(--faint)}
@@ -145,6 +182,7 @@ footer{font-size:12px;color:var(--faint)}
   .row{grid-template-columns:20px minmax(0,1fr) auto;gap:2px 10px}
   .review{grid-column:1/-1}
   .strip{height:24px;gap:1px}
+  dialog{padding:18px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -160,17 +198,44 @@ footer{font-size:12px;color:var(--faint)}
     <dl class="sum" id="summary"></dl>
   </header>
 
+  <div class="edit" id="edit" hidden></div>
+
   <nav class="games" id="games" role="tablist" aria-label="게임 선택"></nav>
 
-  <section class="detail" id="detail" role="tabpanel" aria-live="polite"></section>
+  <section class="detail" id="detail" role="tabpanel" aria-live="polite"><p class="empty">불러오는 중…</p></section>
 
   <section class="backlog" id="backlog"></section>
 
   <footer id="foot"></footer>
 </div>
 
+<dialog id="connect" aria-labelledby="connect-title">
+  <form method="dialog" id="connect-form">
+    <h2 id="connect-title">이 기기에서 체크 켜기</h2>
+    <p>체크는 GitHub 저장소 <code id="repo-name"></code>의 <code>data.json</code>에 저장되고, PC가 10분마다 옵시디언 노트에 반영해요. 저장소에 쓸 수 있는 토큰이 필요하고, 토큰은 <b>이 브라우저에만</b> 저장돼요.</p>
+    <ol>
+      <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">토큰 만들기 페이지</a>를 열어요 (GitHub 로그인 상태)</li>
+      <li><b>Token name</b>은 아무거나, <b>Expiration</b>은 원하는 기간으로</li>
+      <li><b>Repository access</b> → Only select repositories → <code>game-log</code></li>
+      <li><b>Permissions</b> → Repository permissions → <b>Contents</b> → Read and write</li>
+      <li><b>Generate token</b>을 누르고, 나온 토큰을 복사해서 아래에 붙여넣어요</li>
+    </ol>
+    <label for="token-input">GitHub 토큰</label>
+    <input id="token-input" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
+    <div class="d-err" id="connect-err" role="alert"></div>
+    <div class="d-actions">
+      <button type="button" class="btn ghost danger" id="disconnect" hidden>이 기기에서 연결 해제</button>
+      <div>
+        <button type="submit" class="btn ghost" value="cancel" formnovalidate>닫기</button>
+        <button type="button" class="btn primary" id="connect-save">연결</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
 <script>
-const DATA = {"vault": "Royal Road", "built": "2026-09-17 13:16", "games": [{"id": "니케", "name": "니케", "file": "Resources/게임/니케.md", "accent": "rose", "updated": "2026-09-16 14:22", "notes": ["출처: [NIKKE 스토리 감상 순서 가이드](https://ssissun.github.io/nikke-storyline/) (커뮤니티 추천 순서, 릴리즈 순 아님)", "메인스토리는 2지역씩 묶어서, 이벤트/사이드/호감도 스토리는 1개씩 항목화", "가중치(분)는 K tube 채널 영상 러닝타임 기준 (#1~#2·후일담 등은 합산). 호감도 스토리는 평균 15분으로 계산"], "total": 6681, "done": 2552, "pct": 38, "items": [{"min": 46, "title": "메인 1~2지역", "done": true}, {"min": 75, "title": "메인 3~4지역", "done": true}, {"min": 47, "title": "메인 5~6지역", "done": true}, {"min": 45, "title": "메인 7~8지역", "done": true}, {"min": 54, "title": "메인 9~10지역", "done": true}, {"min": 59, "title": "메인 11~12지역", "done": true}, {"min": 88, "title": "메인 13~14지역", "done": true}, {"min": 78, "title": "메인 15~16지역", "done": true}, {"min": 136, "title": "메인 17~18지역", "done": true}, {"min": 87, "title": "메인 19~20지역", "done": true}, {"min": 128, "title": "OVER ZONE", "tags": ["이벤트 · 0.5주년 필수"], "done": true}, {"min": 32, "title": "CHERRY BLOSSOM", "tags": ["이벤트 · 선택"], "done": false}, {"min": 15, "title": "디젤", "tags": ["호감도 · 선택"], "done": false}, {"min": 138, "title": "메인 21~22지역", "done": true}, {"min": 184, "title": "메인 23~24지역", "done": true}, {"min": 137, "title": "RED ASH", "tags": ["이벤트 · 1주년 필수"], "done": true}, {"min": 134, "title": "메인 25~26지역", "done": true}, {"min": 74, "title": "NEW YEAR, NEW SWORD", "tags": ["이벤트 · 신년 필수"], "done": true}, {"min": 58, "title": "SECOND AFFECTION", "tags": ["사이드 필수"], "done": true}, {"min": 11, "title": "FIRST AFFECTION", "tags": ["이벤트 · 선택"], "done": true}, {"min": 15, "title": "킬로", "tags": ["호감도 · 선택"], "done": false}, {"min": 181, "title": "LAST KINGDOM", "tags": ["이벤트 · 1.5주년 필수"], "done": true}, {"min": 39, "title": "DIRTY BACKYARD", "tags": ["이벤트 · 선택"], "done": true}, {"min": 33, "title": "L.T.K — LICENSE TO KILL", "tags": ["이벤트 · 선택"], "done": false}, {"min": 45, "title": "KILL THE LORD", "tags": ["이벤트 · 선택"], "done": false}, {"min": 34, "title": "BOOM'S DAY", "tags": ["이벤트 · 선택"], "done": false}, {"min": 42, "title": "D.ARK HERO", "tags": ["이벤트 · 선택"], "done": false}, {"min": 165, "title": "ICE DRAGON SAGA", "tags": ["이벤트 · 선택"], "done": false}, {"min": 158, "title": "메인 27~28지역", "done": true}, {"min": 145, "title": "메인 29~30지역", "done": true}, {"min": 124, "title": "메인 31~32지역", "done": true}, {"min": 186, "title": "OLD TALES", "tags": ["이벤트 · 2주년 필수, 메인 31~32와 연계"], "done": true}, {"min": 174, "title": "메인 33~34지역", "done": false}, {"min": 135, "title": "FOOTSTEP, WALK, RUN", "tags": ["이벤트 · 신년 필수"], "done": false}, {"min": 15, "title": "에테르", "tags": ["호감도 · 선택"], "done": false}, {"min": 29, "title": "WISDOM SPRING", "tags": ["이벤트 필수"], "done": false}, {"min": 159, "title": "메인 35~36지역", "done": false}, {"min": 58, "title": "WORDLESS", "tags": ["사이드 필수"], "done": true}, {"min": 82, "title": "MUDFISH", "tags": ["사이드 필수"], "done": true}, {"min": 15, "title": "모리", "tags": ["호감도 · 선택"], "done": false}, {"min": 229, "title": "UNBREAKABLE SPHERE", "tags": ["이벤트 · 2.5주년 필수"], "done": false}, {"min": 142, "title": "메인 37~38지역", "done": false}, {"min": 44, "title": "ARCANE ARCHIVE", "tags": ["이벤트 필수"], "done": false}, {"min": 36, "title": "LORD FOR JUSTICE", "tags": ["이벤트 · 선택"], "done": false}, {"min": 40, "title": "OVER THE HORIZON", "tags": ["이벤트 필수"], "done": false}, {"min": 161, "title": "BOOM THE GHOST", "tags": ["이벤트 필수"], "done": false}, {"min": 224, "title": "메인 39~40지역", "done": false}, {"min": 82, "title": "EDEN SPEAR", "tags": ["사이드 필수"], "done": false}, {"min": 250, "title": "메인 41~42지역", "done": false}, {"min": 235, "title": "GODDESS FALL", "tags": ["이벤트 · 3주년 필수"], "done": false}, {"min": 163, "title": "ARK GUARDIAN", "tags": ["이벤트 · 신년 필수"], "done": false}, {"min": 240, "title": "메인 43~44지역", "done": false}, {"min": 41, "title": "ENTER HEAVEN", "tags": ["이벤트 · 선택"], "done": false}, {"min": 43, "title": "GOOD WORLD", "tags": ["이벤트 · 선택, 중요도 높음"], "done": false}, {"min": 136, "title": "PRETTY STAR", "tags": ["사이드 필수"], "done": false}, {"min": 245, "title": "메인 45~46지역", "done": false}, {"min": 252, "title": "STAR ANIS", "tags": ["이벤트 · 3.5주년 필수"], "done": false}, {"min": 157, "title": "ARK RANGER", "tags": ["이벤트 필수"], "done": false}, {"min": 152, "title": "WAVE TO YOU", "tags": ["이벤트 · 선택"], "done": false}, {"min": 215, "title": "PROJECT MATIS", "tags": ["이벤트 필수"], "done": false}, {"min": 134, "title": "메인 47~48지역", "done": false}]}, {"id": "림버스컴퍼니", "name": "림버스컴퍼니", "file": "Resources/게임/림버스컴퍼니.md", "accent": "orange", "updated": "2026-09-16 21:21", "notes": ["메인스토리(칸토)와 .5장(인터미션) 전부 1개씩 항목화", "현재까지 나온 분량(지옥편 9장 + 9.5장까지)을 100% 기준으로 잡음", "8.5EX \"선의의 순례\"(명일방주 콜라보, 기간 한정 완전 삭제)와 발푸르기스/만우절 등 미니 스토리는 목록·진행도 계산에서 제외", "이미 감상한 부분(0~3.5장까지)은 체크 완료 처리해둠"], "total": 3819, "done": 749, "pct": 20, "items": [{"min": 33, "review": "", "title": "0장 어두운 숲", "done": true}, {"min": 96, "review": "", "title": "1장 속하지 못하는", "done": true}, {"min": 110, "review": "", "title": "2장 사랑할 수 없는", "done": true}, {"min": 144, "review": "", "title": "3장 마주하지 않는", "done": true}, {"min": 55, "review": "", "title": "3.5장 헬스 치킨", "done": true}, {"min": 249, "review": "모두 자신의 신념이 정당하다고 생각했지만 결국 모두가 망가져있었다.", "title": "4장 변하지 않는", "done": true}, {"min": 62, "title": "4.5장 우.미.다", "done": true}, {"min": 348, "title": "5장 악으로 규정되는", "done": false}, {"min": 74, "title": "5.5장 20번구의 기적", "done": false}, {"min": 73, "title": "5.5장 육참골단", "done": false}, {"min": 307, "title": "6장 마음이 어긋나는", "done": false}, {"min": 124, "title": "6.5장 시간살인시간", "done": false}, {"min": 118, "title": "6.5장 워프특급 살인사건", "done": false}, {"min": 378, "title": "7장 꿈이 끝나는", "done": false}, {"min": 125, "title": "7.5장 LCB 정기검진", "done": false}, {"min": 121, "title": "7.5장 심야청소", "done": false}, {"min": 523, "title": "8장 바라볼 수밖에 없는", "done": false}, {"min": 137, "title": "8.5장 절차탁춘", "done": false}, {"min": 485, "title": "9장 끊어지지 않는", "done": false}, {"min": 136, "title": "9.5장 타래 엮기", "done": false}, {"min": 121, "title": "9.5장 경험기억", "done": false}]}, {"id": "명조", "name": "명조", "file": "Resources/게임/명조.md", "accent": "violet", "updated": "2026-09-09 18:34", "notes": ["K tube 채널 \"메인 스토리 몰아보기\" 영상 목록 기준으로 정리", "가중치(분)는 영상 러닝타임 기준 (#1~#2로 나뉜 막은 합산)", "체크 여부는 아직 반영 안 함 — 직접 본 만큼 체크해줘", "[명조 위키키](https://arca.live/w/wutheringwaves/이정도면%20잘키웠다표#s-5)"], "total": 4009, "done": 1913, "pct": 48, "items": [{"min": 29, "title": "프롤로그: 새로운 소리", "done": true}, {"min": 46, "title": "제1장 제1막: 운명적인 첫 만남", "done": true}, {"min": 29, "title": "제1장 제2막: 퇴각의 북소리", "done": true}, {"min": 22, "title": "제1장 제3막: 첫 마주치는 잔성", "done": true}, {"min": 42, "title": "제1장 제4막: 변정에서 울리는 칼날의 소리", "done": true}, {"min": 58, "title": "제1장 제5막: 곧 내리는 비", "done": true}, {"min": 72, "title": "제1장 제6막: 멀리 날아가는 군...", "done": true}, {"min": 129, "title": "제1장 제7막: 승소산에서 울렸던 경칩 소리", "done": true}, {"min": 108, "title": "제1장 제8막: 해안의 끝을 찾아서", "done": true}, {"min": 75, "title": "낮의 문을 두드리는 야밤(카멜리아)", "done": true}, {"min": 86, "title": "제2장 제1막: 늘 불어오는 신성한 바람", "done": true}, {"min": 102, "title": "제2장 제2막: 밤과 낮, 모두 베일을 벗는다", "done": true}, {"min": 130, "title": "제2장 제3막: 슬펐던 내가 지금은 노래를 부르기로 한다", "done": true}, {"min": 146, "title": "제2장 제4막: 성스러운 자, 거역하는 자, 죽음을 가져오는 자", "done": true}, {"min": 113, "title": "제2장 제5막: 영광 속 그림자", "done": false}, {"min": 72, "title": "제2장 제6막: 불타는 마음", "done": false}, {"min": 9, "title": "제2장 제6막 후일담", "done": false}, {"min": 135, "title": "제2장 제7막: 비밀 정원에서 꿈을 좇아서", "done": false}, {"min": 46, "title": "제2장 에필로그: 녹슨 철, 검 그리고 뜨거운 태양", "done": false}, {"min": 154, "title": "제2장 제8막: 나를 비추는 뜨거운 햇빛", "done": false}, {"min": 131, "title": "제2장 제9막: 달빛에 바치는 오늘 같은 밤", "done": false}, {"min": 90, "title": "제2장 제10막: 지나간 것은 언젠가 돌아올테니", "done": false}, {"min": 209, "title": "제2장 제11막: 어두운 물결이 드리울 새벽", "done": false}, {"min": 49, "title": "제2장 에필로그: 홀로 타향에서 나그네 되었네", "done": false}, {"min": 110, "title": "제2장 제12막: 새벽빛이 황야에 멈추자", "done": false}, {"min": 62, "title": "제2장 에필로그: 눈 속에 흐르는 별빛", "done": false}, {"min": 143, "title": "제3장 제1막: 빙원 아래의 별빛·스타토치", "done": true}, {"min": 112, "title": "제3장 제2막: 두 번째 해돋이를 맞이하며", "done": true}, {"min": 183, "title": "제3장 제3막: 먼 길을 떠나는 별", "done": true}, {"min": 61, "title": "제3장 에필로그: 햇살이 머무는 곳", "done": true}, {"min": 132, "title": "제3장 제4막: 그림자 아래 떨어지지 않는 황금", "done": true}, {"min": 68, "title": "제3장 에필로그: 어두운 면·뒤틀린 토끼의 그림자", "done": true}, {"min": 34, "title": "제3장 에필로그: 방울에 맺힌 소원", "done": false}, {"min": 139, "title": "제3장 제5막: 어젯밤의 뭇별들", "done": false}, {"min": 12, "title": "제3장 제5막 후일담", "done": false}, {"min": 92, "title": "제3장 에필로그: 녹아내린 밤하늘 아래", "done": false}, {"min": 140, "title": "제3장 외전: 엣지 드림", "done": true}, {"min": 100, "title": "제3장 에필로그: 우리의 선택은 하늘", "done": false}, {"min": 147, "title": "제4장 제1막: 산비가 내리기 전, 누각을 채운 거센 바람", "done": false}, {"min": 130, "title": "제4장 제2막: 골짜기를 뒤흔든 현령, 잠잠해진 물결", "done": false}, {"min": 16, "title": "제4장 에필로그: 신비로운 선율의 서약, 아득히 이어진 인연", "done": false}, {"min": 246, "title": "제4장 제3막: 연운이 아득하니 심검이 우네", "done": false}]}, {"id": "블루아카이브", "name": "블루 아카이브", "file": "Resources/게임/블루아카이브.md", "accent": "blue", "updated": "2026-09-09 18:27", "notes": ["1부 최종장까지 이벤스 포함 스토리 순서", "※ 공식 스토리 순서가 아닌 임의 감상 순서표 기준 — 표가 지그재그(뱀 모양)로 이어지므로 줄이 끝나는 쪽에서 아래로 꺾여 반대 방향으로 진행됨에 주의", "가중치 옆 괄호는 한국 서버(글로벌 서버와 동일 빌드) 기준 실제 출시일. 원래 항목이 여러 챕터를 합쳐놓은 경우 챕터별로 줄을 나눴고, 가중치(min)는 원본에서 챕터별로 나뉘어 있지 않아 균등 분배로 추정했음", "날짜를 정확히 못 찾은 항목은 \"확인 필요\"로 남겨둠", "⚠️ \"해피 발렌타인 순찰\"의 순서표상 정확한 연결 지점이 애매해서 Vol.3 4장 다음으로 임시 배치함 — 확인 필요", "⚠️ 참고", "\"Vol.3 에덴조약 편 1장/2장/3장\"은 원래 \"1~2장 / 3장 1~4화\"로 합쳐져 있었고, 실제 에덴조약 3장 영상 전체 분량(267분)이 3장 한 줄에 몰아넣어져 있었음. 1장·2장의 정확한 개별 분량은 알 수 없어 추정치.", "\"Vol.3 에덴조약 편 4장\"은 원래 \"3장 5화 ~ 4장\"으로 표기되어 있었지만, 실제로는 4장(149분)만 해당하는 내용."], "total": 2907, "done": 458, "pct": 16, "items": [{"min": 36, "title": "프롤로그", "notes": ["21.11.09"], "done": true}, {"min": 171, "title": "Vol.1 대책위원회 편 1장", "notes": ["21.11.09"], "done": true}, {"min": 171, "title": "Vol.1 대책위원회 편 2장", "notes": ["21.11.09"], "done": true}, {"min": 40, "title": "축제 대소동!", "done": true}, {"min": 40, "title": "혁명의 이반 코팔라", "done": true}, {"min": 40, "title": "네버랜드에서의 술래잡기", "done": false}, {"min": 228, "title": "Vol.2 태엽감는 꽃의 파반느 편 1장", "notes": ["확인 필요 — 2022년 3~4월경으로 추정"], "done": false}, {"min": 40, "title": "선상의 바니 체이서", "done": false}, {"min": 40, "title": "제6장 신춘광상곡", "done": false}, {"min": 206, "title": "Vol.3 에덴조약 편 1장", "notes": ["22.02.15 추정"], "done": false}, {"min": 206, "title": "Vol.3 에덴조약 편 2장", "notes": ["22.05.18"], "done": false}, {"min": 207, "title": "Vol.3 에덴조약 편 3장", "notes": ["22.07.29"], "done": false}, {"min": 40, "title": "히나 선도부장님의 여름방학", "done": false}, {"min": 40, "title": "여름하늘의 위시리스트", "done": false}, {"min": 149, "title": "Vol.3 에덴조약 편 4장", "notes": ["확인 필요 — 전반부 2022.12월경 추정, 후반부 2023.02.16 확인됨"], "done": false}, {"min": 40, "title": "해피 발렌타인 순찰", "notes": ["⚠️ 배치 확인 필요"], "done": false}, {"min": 40, "title": "227호 온천장 운영일지! (하얀 숨결은 어우러지고)", "done": false}, {"min": 40, "title": "침묵과 축연 (와카모 난이도 너무 높으면 스킵해도 됨)", "done": false}, {"min": 40, "title": "잠 못드는 소녀님과 고서관의 마술사", "done": false}, {"min": 132, "title": "Vol.4 카르바노그의 토끼 편 1장", "notes": ["22.11.09"], "done": false}, {"min": 40, "title": "꽃잎의 마음", "done": false}, {"min": 40, "title": "아비도스 리조트 복구 대책위원회", "done": false}, {"min": 40, "title": "출장! 백야당 바다의 집 프랜차이즈 계획", "done": false}, {"min": 40, "title": "달콤한 비밀과 총격전", "done": false}, {"min": 40, "title": "On Your Mark @ Millennium", "done": false}, {"min": 40, "title": "Get Set Go!", "done": false}, {"min": 55, "title": "Ex. 데카그라마톤 편 1장 (지혜의 뱀 13화 새로운 시작 에피소드까지)", "notes": ["확인 필요"], "done": false}, {"min": 162, "title": "Vol.2 태엽감는 꽃의 파반느 편 2장", "notes": ["23.05.24"], "done": false}, {"min": 40, "title": "성당의 메리 크리스마스 (구 고문시사단의 선물 편)", "done": false}, {"min": 40, "title": "새해의 아페리티프 (신년 한판 승부)", "done": false}, {"min": 424, "title": "Final. 그리고 모든 기적이 시작되는 곳 편", "notes": ["23.07.21 1부 시작, 23.09.05 완결"], "done": false}]}, {"id": "젠레스 존 제로", "name": "젠레스 존 제로", "file": "Resources/게임/젠레스 존 제로.md", "accent": "green", "updated": "2026-09-16 18:44", "notes": ["순서는 공식 추천 감상 순서표 기준 (릴리즈 순서 아님). 메인 챕터 제외 항목은 제목 옆 괄호에 스토리 중요도 별점 표기", "가중치(분)는 K tube 채널 영상 러닝타임 기준, 상/중/하·#1~#3처럼 나뉜 챕터는 합산", "⚠️ 아래 4개 항목은 러닝타임을 못 찾아서 임시로 0분 — 확인되면 알려줘", "캐릭터 신뢰도 스토리는 평균 10분 내외라 목록·진행도에서 제외"], "total": 5566, "done": 514, "pct": 9, "items": [{"min": 67, "title": "프롤로그: 사업X괴이X도의", "done": true, "group": "시즌 1"}, {"min": 112, "title": "시즌1 제1장: 고양이의 분실물", "done": true, "group": "시즌 1"}, {"min": 25, "stars": 5, "title": "「영(제로)」 이상한 이야기", "done": true, "group": "시즌 1"}, {"min": 0, "stars": 3, "title": "파에톤 비화: 비디오 가게의 평범한 하루", "done": true, "group": "시즌 1"}, {"min": 49, "stars": 2, "title": "11호 비화: 공동 임파서블", "done": true, "group": "시즌 1"}, {"min": 78, "stars": 0, "title": "네코마타 비화: 도둑고양이 쥐 잡기", "done": false, "group": "시즌 1"}, {"min": 93, "title": "시즌1 제2장: 공동의 중심에서 외치다?", "done": true, "group": "시즌 1"}, {"min": 53, "stars": 0, "title": "콜레다 비화: 만렙 초등학생", "done": false, "group": "시즌 1"}, {"min": 52, "stars": 0, "title": "그레이스 비화: 강철의 마녀", "done": false, "group": "시즌 1"}, {"min": 98, "title": "시즌1 중간장: 돌발임무", "done": true, "group": "시즌 1"}, {"min": 57, "stars": 2, "title": "청의 비화: 실종된 방부", "done": false, "group": "시즌 1"}, {"min": 92, "title": "위험한 건물에서의 수색", "done": false, "group": "시즌 1"}, {"min": 51, "stars": 0, "title": "리나 비화: 모든 걸 잊으실 때까지", "done": false, "group": "시즌 1"}, {"min": 52, "stars": 2, "title": "리카온 비화: 영웅은 항상 뒤에 있다", "done": false, "group": "시즌 1"}, {"min": 40, "stars": 0, "title": "엘렌 비화: 엘렌, 바쁨, 답장 늦음", "done": false, "group": "시즌 1"}, {"min": 70, "stars": 3, "title": "스페셜 에피소드: 언더커버 R&B", "done": true, "group": "시즌 1"}, {"min": 132, "title": "시즌1 제4장: 불지옥 라이딩", "done": false, "group": "시즌 1"}, {"min": 38, "stars": 0, "title": "버니스 비화: 행운이 눈 앞에", "done": false, "group": "시즌 1"}, {"min": 36, "stars": 0, "title": "라이터 비화: 환호받지 못하는 챔피언", "done": false, "group": "시즌 1"}, {"min": 35, "stars": 0, "title": "리두기록: 오버로드 연회", "done": false, "group": "시즌 1"}, {"min": 68, "stars": 4, "title": "스페셜 에피소드: 버추얼 리벤지", "done": false, "group": "시즌 1"}, {"min": 138, "title": "시즌1 제5장: 쏟아지는 별의 폭풍", "done": false, "group": "시즌 1"}, {"min": 84, "stars": 4, "title": "하루마사 비화: 이곳에 잠든 자", "done": false, "group": "시즌 1"}, {"min": 33, "stars": 3, "title": "리두기록: 창백하고 황량한 땅으로", "done": false, "group": "시즌 1"}, {"min": 84, "stars": 0, "title": "스페셜 에피소드: 반짝이는 이 순간", "done": false, "group": "시즌 1"}, {"min": 48, "stars": 1, "title": "리두기록: 소원이 빛나는 날", "done": false, "group": "시즌 1"}, {"min": 65, "stars": 0, "title": "리두기록: 엘피스 낚시 마스터 대회", "done": false, "group": "시즌 1"}, {"min": 121, "stars": 3, "title": "트리거 비화: 눈에 닿지 않는 -", "done": false, "group": "시즌 1"}, {"min": 75, "title": "0호·엔비 비화: 실버의 부활", "done": false, "group": "시즌 1"}, {"min": 346, "title": "시즌1 에필로그: 눈물은 과거와 함께 묻으리", "done": false, "group": "시즌 1"}, {"min": 56, "stars": 0, "title": "리두기록: 꽃말의 숨겨진 마음", "done": false, "group": "시즌 1"}, {"min": 185, "title": "시즌2 제1장: 구름과 노을이 만나는 곳", "done": false, "group": "시즌 2"}, {"min": 54, "stars": 2, "title": "굴복복 비화: 맹호퇴마전", "done": false, "group": "시즌 2"}, {"min": 186, "title": "시즌2 제2장: 서서히 밀려드는 파도", "done": false, "group": "시즌 2"}, {"min": 196, "stars": 3, "title": "리두기록: 미드서머 판타지", "done": false, "group": "시즌 2"}, {"min": 190, "title": "시즌2 제3장: 그 좋은 밤에 쉬이 들어가지 마오", "done": false, "group": "시즌 2"}, {"min": 126, "stars": 3, "title": "시드 비화: 꽃 계곡의 플로라", "done": false, "group": "시즌 2"}, {"min": 177, "title": "시즌2 제4장: 지난 날의 꿈을 기억하는가", "done": false, "group": "시즌 2"}, {"min": 66, "stars": 3, "title": "루시아 비화: 거꾸로 걸린 야경꾼", "done": false, "group": "시즌 2"}, {"min": 83, "stars": 3, "title": "리두기록: 아직 사라지지 않은 꿈속에서", "done": false, "group": "시즌 2"}, {"min": 227, "title": "시즌2 제5장: 닿을 듯 닿지 않는 심연", "done": false, "group": "시즌 2"}, {"min": 30, "stars": 2, "title": "한정 이벤트: 흐르는 빛의 기록", "done": false, "group": "시즌 2"}, {"min": 371, "title": "시즌2 제6장: 밤을 비추는 불씨가 되어", "done": false, "group": "시즌 2"}, {"min": 100, "stars": 4, "title": "리두기록: 공명의 검을 찾아서", "done": false, "group": "시즌 2"}, {"min": 0, "stars": 4, "title": "한정 이벤트: 「연계 조사: 신의 미궁」", "done": false, "group": "시즌 2"}, {"min": 0, "stars": 2, "title": "한정 이벤트: 천사와 뮤즈의 망상", "done": false, "group": "시즌 2"}, {"min": 271, "title": "시즌2 중간장: 오랜 꿈의 앙코르", "done": false, "group": "시즌 2"}, {"min": 120, "stars": 2, "title": "리두기록: 공명하는 망상의 순간", "done": false, "group": "시즌 2"}, {"min": 168, "title": "시즌2 에필로그: 뉴 에리두의 일몰 (상)", "done": false, "group": "시즌 2"}, {"min": 69, "stars": 0, "title": "리두기록: 펄펄 끓는 미식 탐방기", "done": false, "group": "시즌 2"}, {"min": 132, "title": "시즌2 에필로그: 뉴 에리두의 일몰 (하)", "done": false, "group": "시즌 2"}, {"min": 234, "title": "시즌3 제1장: 꿈속을 헤매는 이의 고백", "done": false, "group": "시즌 3"}, {"min": 0, "stars": 2, "title": "리두기록: 방방! 천재와 기적의 칩", "done": false, "group": "시즌 3"}, {"min": 232, "title": "시즌3 제2장: 기나긴 이별", "done": false, "group": "시즌 3"}, {"title": "굴복복 비화 외 (시즌2/3 소속으로 추정, 이미 위에 반영됨)", "done": false, "group": "기타 에이전트 비화 (순서표에 없는 항목)", "min": 1}]}], "backlog": [{"title": "할로우 나이트", "done": false}, {"title": "메타포 리판타지오", "done": false}, {"title": "니어 오토마타", "done": true}, {"title": "크로노 트리거", "done": false}, {"title": "사이버펑크 2077", "done": false}, {"title": "쓰르라미 울 적에 (유튜브 에디션)", "done": false}, {"title": "몬스터 헌터 와일즈", "done": false}, {"title": "데메크5", "done": false}]};
+const EMBEDDED = /*__DATA__*/null;   // 아티팩트 스냅샷이면 데이터가 들어 있음 (읽기 전용)
+const REPO = "clearuno/game-log";
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -181,40 +246,147 @@ const hours = m => {
 };
 const store = {
   get(k){ try { return localStorage.getItem(k); } catch { return null; } },
-  set(k, v){ try { localStorage.setItem(k, v); } catch {} },
+  set(k, v){ try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
 };
 const CHECK = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.3l2.3 2.3 4.7-5"/></svg>';
+const now = () => { const d = new Date(), p = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 
-const games = DATA.games;
-const nextOf = g => g.items.findIndex(i => !i.done);
-
+let DATA = EMBEDDED;
+let token = EMBEDDED ? null : store.get("sl-token");
 let current = store.get("sl-game");
-if (location.hash) current = decodeURIComponent(location.hash.slice(1));
-if (!games.some(g => g.id === current)) current = games[0]?.id;
 let filter = store.get("sl-filter") || "all";
+const pending = new Map();          // 아직 저장 안 된 체크: key → done
+let saving = false, saveTimer = null;
+let state = {s: "idle", msg: ""};
+
+const canEdit = () => !EMBEDDED && !!token;
+const games = () => DATA.games;
+const stats = items => {
+  const total = items.reduce((a, i) => a + i.min, 0);
+  const done = items.reduce((a, i) => a + (i.done ? i.min : 0), 0);
+  return {total, done, pct: total ? Math.round(done / total * 100) : 0};
+};
+const nextOf = g => g.items.findIndex(i => !i.done);
+function findItem(data, key){
+  for (const g of data.games) for (const it of g.items) if (it.key === key) return it;
+  return data.backlog.find(it => it.key === key);
+}
+
+/* ── GitHub 저장 ─────────────────────────────────────── */
+
+const b64enc = s => { const b = new TextEncoder().encode(s); let bin = "";
+  for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000));
+  return btoa(bin); };
+const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, "")), c => c.charCodeAt(0)));
+
+function api(path, opts = {}, tok = token){
+  return fetch(`https://api.github.com/repos/${REPO}${path}`, {
+    cache: "no-store", ...opts,
+    headers: {Authorization: `Bearer ${tok}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"},
+  });
+}
+function apiError(r){
+  if (r.status === 401) return "토큰이 만료됐거나 잘못됐어요. 새 토큰으로 다시 연결해 주세요.";
+  if (r.status === 403 || r.status === 404) return "이 토큰으로는 game-log 저장소에 쓸 수 없어요. Contents 권한이 Read and write인지 확인해 주세요.";
+  return `GitHub 오류 (${r.status})`;
+}
+async function fetchRemote(tok = token){
+  const r = await api("/contents/data.json?ref=main", {}, tok);
+  if (!r.ok) throw Object.assign(new Error(apiError(r)), {status: r.status});
+  const j = await r.json();
+  return {sha: j.sha, data: JSON.parse(b64dec(j.content))};
+}
+
+function toggle(key){
+  const it = findItem(DATA, key);
+  if (!it || !canEdit()) return;
+  it.done = !it.done;
+  pending.set(key, it.done);
+  setState("pending");
+  render(key);
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(save, 1200);   // 연달아 체크하면 한 번에 커밋
+}
+
+async function save(){
+  if (saving){ clearTimeout(saveTimer); saveTimer = setTimeout(save, 600); return; }
+  if (!pending.size) return;
+  saving = true;
+  const batch = new Map(pending);
+  pending.clear();
+  setState("saving");
+  try {
+    for (let attempt = 0; attempt < 4; attempt++){
+      const {sha, data} = await fetchRemote();       // 옵시디언 동기화가 그 사이 올린 내용 위에 덮어씀
+      for (const [k, v] of batch){ const it = findItem(data, k); if (it) it.done = v; }
+      data.saved = now();
+      const names = [...batch].map(([k, v]) => `${v ? "✓" : "☐"} ${k.split("::")[1]}`);
+      const message = batch.size === 1 ? `사이트에서 체크: ${names[0]}` : `사이트에서 체크 ${batch.size}개\n\n${names.join("\n")}`;
+      const r = await api("/contents/data.json", {method: "PUT", body: JSON.stringify({
+        message, branch: "main", sha, content: b64enc(JSON.stringify(data, null, 1) + "\n")})});
+      if (r.ok){
+        for (const [k, v] of pending){ const it = findItem(data, k); if (it) it.done = v; }
+        DATA = data;
+        setState(pending.size ? "pending" : "saved");
+        render();
+        return;
+      }
+      if (r.status !== 409 && r.status !== 422) throw new Error(apiError(r));
+    }
+    throw new Error("다른 곳에서 동시에 저장하고 있어요. 잠시 후 다시 시도해 주세요.");
+  } catch (e){
+    for (const [k, v] of batch) if (!pending.has(k)) pending.set(k, v);
+    setState("error", e.message === "Failed to fetch" ? "인터넷 연결을 확인해 주세요." : e.message);
+    render();
+  } finally {
+    saving = false;
+    if (pending.size && state.s !== "error"){ clearTimeout(saveTimer); saveTimer = setTimeout(save, 1200); }
+  }
+}
+
+function setState(s, msg = ""){
+  state = {s, msg};
+  renderEdit();
+}
+
+/* ── 렌더링 ─────────────────────────────────────────── */
+
+function renderEdit(){
+  const el = $("#edit");
+  if (EMBEDDED || !DATA){ el.hidden = true; return; }
+  el.hidden = false;
+  if (!token){
+    el.innerHTML = `<span class="state">보기 전용</span><button class="btn" id="open-connect">체크 켜기</button>`;
+    return;
+  }
+  const label = {idle: "체크 가능", pending: "저장 대기 중…", saving: "GitHub에 저장 중…",
+    saved: "저장됨 · 옵시디언에는 10분 안에 반영돼요", error: state.msg}[state.s];
+  el.innerHTML = `<span class="state" data-s="${state.s}" role="status">${esc(label)}</span>
+    ${state.s === "error" && pending.size ? '<button class="btn" id="retry">다시 시도</button>' : ""}
+    <button class="btn ghost" id="open-connect">연결 설정</button>`;
+}
 
 function renderSummary(){
-  const total = games.reduce((a, g) => a + g.total, 0);
-  const done = games.reduce((a, g) => a + g.done, 0);
-  const pct = total ? Math.round(done / total * 100) : 0;
+  const s = stats(games().flatMap(g => g.items));
   $("#vault-label").textContent = `Obsidian · ${DATA.vault}`;
   $("#summary").innerHTML = `
-    <div><dt>전체 진행</dt><dd>${pct}<small>%</small></dd></div>
-    <div><dt>감상한 분량</dt><dd>${Math.round(done / 60)}<small>시간</small></dd></div>
-    <div><dt>남은 분량</dt><dd>${Math.round((total - done) / 60)}<small>시간</small></dd></div>`;
+    <div><dt>전체 진행</dt><dd>${s.pct}<small>%</small></dd></div>
+    <div><dt>감상한 분량</dt><dd>${Math.round(s.done / 60)}<small>시간</small></dd></div>
+    <div><dt>남은 분량</dt><dd>${Math.round((s.total - s.done) / 60)}<small>시간</small></dd></div>`;
 }
 
 function renderCards(){
-  $("#games").innerHTML = games.map(g => {
-    const n = nextOf(g);
+  $("#games").innerHTML = games().map(g => {
+    const s = stats(g.items), n = nextOf(g);
     const next = n < 0 ? "<b>전부 감상 완료</b>" : `다음 <b>${esc(g.items[n].title)}</b>`;
     return `<button class="game" role="tab" style="--acc:var(--${g.accent})" data-id="${esc(g.id)}"
         aria-selected="${g.id === current}" aria-controls="detail">
       <div class="game-head"><span class="game-name">${esc(g.name)}</span>
-        <span class="game-pct">${g.pct}<small>%</small></span></div>
-      <div class="bar"><i style="width:${g.pct}%"></i></div>
+        <span class="game-pct">${s.pct}<small>%</small></span></div>
+      <div class="bar"><i style="width:${s.pct}%"></i></div>
       <div class="game-next">${next}</div>
-      <div class="game-meta"><span class="num">${g.done.toLocaleString()} / ${g.total.toLocaleString()}분</span></div>
+      <div class="game-meta"><span class="num">${s.done.toLocaleString()} / ${s.total.toLocaleString()}분</span></div>
     </button>`;
   }).join("");
 }
@@ -228,8 +400,12 @@ function itemRow(g, it, i, n){
   const sub = [i === n ? '<span class="next-badge">다음 차례</span>' : "", stars, tags, notes,
     zero ? '<span class="warn">분량 미확인</span>' : "",
     it.review === "" ? '<span>감상 노트 (비어 있음)</span>' : ""].join("");
-  return `<div class="row${it.done ? " done" : ""}" id="item-${i}">
-    <span class="box" role="img" aria-label="${it.done ? "감상함" : "안 봄"}">${it.done ? CHECK : ""}</span>
+  const box = `<span class="box">${it.done ? CHECK : ""}</span>`;
+  const check = canEdit()
+    ? `<button class="box-btn" data-key="${esc(it.key)}" aria-pressed="${it.done}" aria-label="${esc(it.title)} ${it.done ? "체크 해제" : "체크"}">${box}</button>`
+    : `<span role="img" aria-label="${it.done ? "감상함" : "안 봄"}">${box}</span>`;
+  return `<div class="row${it.done ? " done" : ""}${pending.has(it.key) ? " pending" : ""}" id="item-${i}">
+    ${check}
     <div class="r-title"><div class="t">${esc(it.title)}</div>${sub ? `<div class="r-sub">${sub}</div>` : ""}</div>
     <span class="r-min num${zero ? " zero" : ""}">${it.min}분</span>
     ${it.review ? `<blockquote class="review">${esc(it.review)}</blockquote>` : ""}
@@ -237,11 +413,11 @@ function itemRow(g, it, i, n){
 }
 
 function renderDetail(){
-  const g = games.find(x => x.id === current);
+  const g = games().find(x => x.id === current);
   const el = $("#detail");
   if (!g){ el.innerHTML = '<p class="empty">게임 트래커 노트를 찾지 못했어요.</p>'; return; }
   el.style.setProperty("--acc", `var(--${g.accent})`);
-  const n = nextOf(g);
+  const n = nextOf(g), s = stats(g.items);
   const cnt = g.items.filter(i => i.done).length;
 
   const segs = g.items.map((it, i) => {
@@ -251,16 +427,15 @@ function renderDetail(){
   }).join("");
 
   const shown = g.items.map((it, i) => [it, i]).filter(([it]) =>
-    filter === "all" || (filter === "todo" ? !it.done : it.done));
+    filter === "all" || pending.has(it.key) || (filter === "todo" ? !it.done : it.done));
 
   let list = "", lastGroup;
   for (const [it, i] of shown){
     const grp = it.group || "";
     if (grp !== lastGroup){
       if (grp){
-        const gi = g.items.filter(x => (x.group || "") === grp);
-        const gt = gi.reduce((a, x) => a + x.min, 0), gd = gi.filter(x => x.done).reduce((a, x) => a + x.min, 0);
-        list += `<div class="group-h"><span>${esc(grp)}</span><span class="num">${gt ? Math.round(gd / gt * 100) : 0}%</span></div>`;
+        const gs = stats(g.items.filter(x => (x.group || "") === grp));
+        list += `<div class="group-h"><span>${esc(grp)}</span><span class="num">${gs.pct}%</span></div>`;
       }
       lastGroup = grp;
     }
@@ -270,11 +445,11 @@ function renderDetail(){
 
   el.innerHTML = `
     <div class="d-head">
-      <div><h2>${esc(g.name)}</h2><div class="d-file">${esc(g.file)} · 수정 ${esc(g.updated)}</div></div>
+      <div><h2>${esc(g.name)}</h2><div class="d-file">${esc(g.file)}</div></div>
       <dl class="d-stats">
-        <div><dt>진행도</dt><dd class="acc">${g.pct}%</dd></div>
-        <div><dt>감상</dt><dd>${hours(g.done)}</dd></div>
-        <div><dt>남음</dt><dd>${hours(g.total - g.done)}</dd></div>
+        <div><dt>진행도</dt><dd class="acc">${s.pct}%</dd></div>
+        <div><dt>감상</dt><dd>${hours(s.done)}</dd></div>
+        <div><dt>남음</dt><dd>${hours(s.total - s.done)}</dd></div>
         <div><dt>항목</dt><dd class="num" style="font-family:var(--display)">${cnt}/${g.items.length}</dd></div>
       </dl>
     </div>
@@ -300,31 +475,47 @@ function renderBacklog(){
   if (!b.length){ $("#backlog").hidden = true; return; }
   const left = b.filter(x => !x.done).length;
   $("#backlog").innerHTML = `<h2>할 게임 백로그 <span class="num" style="font-size:15px;color:var(--muted)">${left}개 남음</span></h2>
-    <ul class="bl">${b.map(x => `<li class="${x.done ? "done" : ""}"><span class="dot"></span>${esc(x.title)}</li>`).join("")}</ul>`;
+    <ul class="bl">${b.map(x => `<li class="${x.done ? "done" : ""}">${canEdit()
+      ? `<button data-key="${esc(x.key)}" aria-pressed="${x.done}"><span class="dot"></span>${esc(x.title)}</button>`
+      : `<span><span class="dot"></span>${esc(x.title)}</span>`}</li>`).join("")}</ul>`;
+}
+
+function render(focusKey){
+  if (!games().some(g => g.id === current)) current = games()[0]?.id;
+  renderSummary();
+  renderCards();
+  renderDetail();
+  renderBacklog();
+  renderEdit();
+  $("#foot").textContent = DATA.saved ? `마지막 변경 ${DATA.saved}` : "";
+  if (focusKey) document.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.focus();
 }
 
 function select(id){
   current = id;
   store.set("sl-game", id);
   history.replaceState(null, "", "#" + encodeURIComponent(id));
-  renderCards();
-  renderDetail();
+  render();
 }
+
+/* ── 이벤트 ─────────────────────────────────────────── */
 
 $("#games").addEventListener("click", e => {
   const b = e.target.closest(".game");
   if (b) select(b.dataset.id);
 });
 $("#games").addEventListener("keydown", e => {
-  if (e.key !== "ArrowRight" && e.key !== "ArrowLeft" && e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-  const i = games.findIndex(g => g.id === current);
+  if (!["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(e.key)) return;
+  const list = games(), i = list.findIndex(g => g.id === current);
   const d = (e.key === "ArrowRight" || e.key === "ArrowDown") ? 1 : -1;
-  const next = games[(i + d + games.length) % games.length];
+  const next = list[(i + d + list.length) % list.length];
   select(next.id);
   $(`.game[data-id="${CSS.escape(next.id)}"]`).focus();
   e.preventDefault();
 });
 $("#detail").addEventListener("click", e => {
+  const box = e.target.closest(".box-btn");
+  if (box){ toggle(box.dataset.key); return; }
   const chip = e.target.closest(".chip");
   if (chip){
     filter = chip.dataset.f;
@@ -340,12 +531,78 @@ $("#detail").addEventListener("click", e => {
     row.classList.remove("flash"); void row.offsetWidth; row.classList.add("flash");
   }
 });
+$("#backlog").addEventListener("click", e => {
+  const b = e.target.closest("button[data-key]");
+  if (b) toggle(b.dataset.key);
+});
 
-renderSummary();
-renderCards();
-renderDetail();
-renderBacklog();
-$("#foot").textContent = `옵시디언 노트에서 ${DATA.built}에 생성`;
+const dlg = $("#connect");
+$("#edit").addEventListener("click", e => {
+  if (e.target.id === "retry"){ setState("pending"); save(); }
+  if (e.target.id === "open-connect"){
+    $("#token-input").value = "";
+    $("#connect-err").textContent = "";
+    $("#disconnect").hidden = !token;
+    $("#connect-save").textContent = token ? "토큰 바꾸기" : "연결";
+    dlg.showModal();
+  }
+});
+$("#connect-save").addEventListener("click", async () => {
+  const tok = $("#token-input").value.trim();
+  const err = $("#connect-err"), btn = $("#connect-save");
+  if (!tok){ err.textContent = "토큰을 붙여넣어 주세요."; return; }
+  btn.disabled = true; err.textContent = "확인 중…";
+  try {
+    const remote = await fetchRemote(tok);
+    token = tok;
+    store.set("sl-token", tok);
+    if (!pending.size) DATA = remote.data;
+    dlg.close();
+    setState("idle");
+    render();
+  } catch (e){
+    err.textContent = e.message === "Failed to fetch" ? "인터넷 연결을 확인해 주세요." : e.message;
+  } finally { btn.disabled = false; }
+});
+$("#disconnect").addEventListener("click", () => {
+  if (pending.size && !confirm("아직 저장 안 된 체크가 있어요. 그래도 연결을 해제할까요?")) return;
+  token = null;
+  store.set("sl-token", null);
+  pending.clear();
+  dlg.close();
+  setState("idle");
+  render();
+});
+
+addEventListener("beforeunload", e => { if (pending.size || saving) e.preventDefault(); });
+
+// 다른 기기나 옵시디언에서 바뀐 내용을, 탭으로 돌아올 때 다시 불러옴
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && !EMBEDDED && !pending.size && !saving) load().then(() => render());
+});
+
+async function load(){
+  if (EMBEDDED) return;
+  if (token){
+    try { DATA = (await fetchRemote()).data; return; }
+    catch (e){
+      if (e.status === 401){ token = null; store.set("sl-token", null); setState("error"); }
+    }
+  }
+  const r = await fetch("data.json?v=" + Date.now(), {cache: "no-store"});
+  if (!r.ok) throw new Error(`data.json을 불러오지 못했어요 (${r.status})`);
+  DATA = await r.json();
+}
+
+(async () => {
+  if (location.hash) current = decodeURIComponent(location.hash.slice(1));
+  try {
+    await load();
+    render();
+  } catch (e){
+    $("#detail").innerHTML = `<p class="empty">${esc(e.message)}</p>`;
+  }
+})();
 </script>
 </body>
 </html>
